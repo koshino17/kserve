@@ -282,12 +282,12 @@ func (r *InferenceServiceReconciler) updateStatus(desiredService *v1beta1api.Inf
 		// Instead, if the model keep running on False state
 		// Raise an event for info of failed conditions.
 		if !wasReady {
-		fmt.Printf("was not Ready\n")
+			fmt.Printf("was not Ready\n")
 			msg := r.GetFailConditions(desiredService)
 			r.Recorder.Eventf(desiredService, v1.EventTypeWarning, string(InferenceServiceNotReadyState),
 				fmt.Sprintf("InferenceService [%v] is not Ready because of: %v", desiredService.GetName(), msg))
 		}
-				fmt.Printf("statuseuqal? wasReady:%+v\n", wasReady)
+		fmt.Printf("statuseuqal? wasReady:%+v\n", wasReady)
 	} else if err := r.Status().Update(context.TODO(), desiredService); err != nil {
 		r.Log.Error(err, "Failed to update InferenceService status", "InferenceService", desiredService.Name)
 		r.Recorder.Eventf(desiredService, v1.EventTypeWarning, "UpdateFailed",
@@ -383,10 +383,10 @@ func (r *InferenceServiceReconciler) deleteExternalResources(isvc *v1beta1api.In
 
 func (r *InferenceServiceReconciler) GetFailConditions(isvc *v1beta1api.InferenceService) string {
 	/*
-	logf.SetLogger(zap.New())
-	log := logf.Log.WithName("my_controller")
-	log.Info("GetFailConditions")
-	fmt.Println("my_GetFailConditions")
+		logf.SetLogger(zap.New())
+		log := logf.Log.WithName("my_controller")
+		log.Info("GetFailConditions")
+		fmt.Println("my_GetFailConditions")
 	*/
 	msg := ""
 	for _, cond := range isvc.Status.Conditions {
