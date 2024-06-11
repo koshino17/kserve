@@ -283,7 +283,7 @@ func (r *InferenceServiceReconciler) updateStatus(desiredService *v1beta1api.Inf
 		// Raise an event for info of failed conditions.
 		if !wasReady {
 		fmt.Printf("was not Ready\n")
-			msg := GetFailConditions(desiredService)
+			msg := r.GetFailConditions(desiredService)
 			r.Recorder.Eventf(desiredService, v1.EventTypeWarning, string(InferenceServiceNotReadyState),
 				fmt.Sprintf("InferenceService [%v] is not Ready because of: %v", desiredService.GetName(), msg))
 		}
@@ -297,7 +297,7 @@ func (r *InferenceServiceReconciler) updateStatus(desiredService *v1beta1api.Inf
 		// If there was a difference and there was no error.
 		isReady := inferenceServiceReadiness(desiredService.Status)
 		if wasReady && !isReady { // Moved to NotReady State
-			msg := GetFailConditions(desiredService)
+			msg := r.GetFailConditions(desiredService)
 			r.Recorder.Eventf(desiredService, v1.EventTypeWarning, string(InferenceServiceNotReadyState),
 				fmt.Sprintf("InferenceService [%v] is no longer Ready because of: %v", desiredService.GetName(), msg))
 		} else if !wasReady && isReady { // Moved to Ready State
@@ -381,7 +381,13 @@ func (r *InferenceServiceReconciler) deleteExternalResources(isvc *v1beta1api.In
 	return nil
 }
 
-func GetFailConditions(isvc *v1beta1api.InferenceService) string {
+func (r *InferenceServiceReconciler) GetFailConditions(isvc *v1beta1api.InferenceService) string {
+	/*
+	logf.SetLogger(zap.New())
+	log := logf.Log.WithName("my_controller")
+	log.Info("GetFailConditions")
+	fmt.Println("my_GetFailConditions")
+	*/
 	msg := ""
 	for _, cond := range isvc.Status.Conditions {
 		if string(cond.Status) == "False" {
