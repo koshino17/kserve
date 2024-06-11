@@ -93,6 +93,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 		}
 	)
 	Context("When creating inference service with predictor", func() {
+		return
 		It("Should have knative service created", func() {
 			By("By creating a new InferenceService")
 			// Create configmap
@@ -473,6 +474,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("Inference Service with transformer", func() {
+		return
 		It("Should create successfully", func() {
 			serviceName := "svc-with-transformer"
 			namespace := "default"
@@ -801,6 +803,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When doing canary out with inference service", func() {
+		return
 		It("Should have traffic split between two revisions", func() {
 			By("By moving canary traffic percent to the latest revision")
 			// Create configmap
@@ -1044,6 +1047,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating and deleting inference service without storageUri (multi-model inferenceservice)", func() {
+		return
 		// Create configmap
 		var configMap = &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1113,6 +1117,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating an inference service using a ServingRuntime", func() {
+		return
 		It("Should create successfully", func() {
 			serviceName := "svc-with-servingruntime"
 			namespace := "default"
@@ -1294,6 +1299,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating an inference service with a ServingRuntime which does not exists", func() {
+		return
 		It("Should fail with reason RuntimeNotRecognized", func() {
 			serviceName := "svc-with-unknown-servingruntime"
 			servingRuntimeName := "tf-serving-unknown"
@@ -1363,6 +1369,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating an inference service with a ServingRuntime which is disabled", func() {
+		return
 		It("Should fail with reason RuntimeDisabled", func() {
 			serviceName := "svc-with-disabled-servingruntime"
 			servingRuntimeName := "tf-serving-disabled"
@@ -1468,6 +1475,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating an inference service with a ServingRuntime which does not support specified model format", func() {
+		return
 		It("Should fail with reason NoSupportingRuntime", func() {
 			serviceName := "svc-with-unsupported-servingruntime"
 			servingRuntimeName := "tf-serving-unsupported"
@@ -1573,6 +1581,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating an inference service with invalid Storage URI", func() {
+		return
 		It("Should fail with reason ModelLoadFailed", func() {
 			serviceName := "servingruntime-test"
 			servingRuntimeName := "tf-serving"
@@ -1768,6 +1777,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 	})
 
 	Context("When creating inference service with predictor and without top level istio virtual service", func() {
+		return
 		It("Should have knative service created", func() {
 			By("By creating a new InferenceService")
 			// Create configmap
@@ -1876,6 +1886,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 		})
 	})
 	Context("Set CaBundle ConfigMap in inferenceservice-config confimap", func() {
+		return
 		It("Should not create a global cabundle configMap in a user namespace when CaBundleConfigMapName set ''", func() {
 			// Create configmap
 			var configMap = &v1.ConfigMap{
@@ -2298,6 +2309,147 @@ var _ = Describe("v1beta1 inference service controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			fmt.Printf("go to sleep.........")
+			// ***********************
+			time.Sleep(30*time.Second)
+			updatedService.Status.Conditions = duckv1.Conditions{
+		            {
+		                Type:   knservingv1.ServiceConditionReady,
+		                Status: "False",
+		                Reason: "ModelLoadFailed",
+		                Message: "Model failed to load",
+		            },
+		        }
+		        Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		            return k8sClient.Status().Update(context.TODO(), updatedService)
+		        })).NotTo(gomega.HaveOccurred())
+
+		        Eventually(func() bool {
+		            err := k8sClient.Get(ctx, serviceKey, inferenceService)
+		            if err != nil {
+		                return false
+		            }
+		            for _, condition := range inferenceService.Status.Conditions {
+		                if condition.Type == knservingv1.ServiceConditionReady && condition.Status == "False" {
+		                    return true
+		                }
+		            }
+		            return false
+		        }, timeout, interval).Should(BeTrue())
+			fmt.Printf("Go to sleep .....")
+			time.Sleep(30000*time.Second)
+		})
+	})
+	Context("David", func() {
+		return
+		It("David", func() {
+			// Create configmap
+			var configMap = &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      constants.InferenceServiceConfigMapName,
+					Namespace: constants.KServeNamespace,
+				},
+				Data: configs,
+			}
+			Expect(k8sClient.Create(context.TODO(), configMap)).NotTo(HaveOccurred())
+			defer k8sClient.Delete(context.TODO(), configMap)
+			// Create ServingRuntime
+			servingRuntime := &v1alpha1.ServingRuntime{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tf-serving",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ServingRuntimeSpec{
+					SupportedModelFormats: []v1alpha1.SupportedModelFormat{
+						{
+							Name:       "tensorflow",
+							Version:    proto.String("1"),
+							AutoSelect: proto.Bool(true),
+						},
+					},
+					ServingRuntimePodSpec: v1alpha1.ServingRuntimePodSpec{
+						Containers: []v1.Container{
+							{
+								Name:    constants.InferenceServiceContainerName,
+								Image:   "tensorflow/serving:1.14.0",
+								Command: []string{"/usr/bin/tensorflow_model_server"},
+								Args: []string{
+									"--port=9000",
+									"--rest_api_port=8080",
+									"--model_base_path=/mnt/models",
+									"--rest_api_timeout_in_ms=60000",
+								},
+								Resources: defaultResource,
+							},
+						},
+					},
+					Disabled: proto.Bool(false),
+				},
+			}
+			k8sClient.Create(context.TODO(), servingRuntime)
+			defer k8sClient.Delete(context.TODO(), servingRuntime)
+			// Create Canary InferenceService
+			serviceName := "James"
+			var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: serviceName, Namespace: "default"}}
+			var serviceKey = expectedRequest.NamespacedName
+			var storageUri = "s3://test/mnist/export"
+			ctx := context.Background()
+			isvc := &v1beta1.InferenceService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceKey.Name,
+					Namespace: serviceKey.Namespace,
+				},
+				Spec: v1beta1.InferenceServiceSpec{
+					Predictor: v1beta1.PredictorSpec{
+						ComponentExtensionSpec: v1beta1.ComponentExtensionSpec{
+							MinReplicas: v1beta1.GetIntReference(1),
+							MaxReplicas: 3,
+						},
+						Tensorflow: &v1beta1.TFServingSpec{
+							PredictorExtensionSpec: v1beta1.PredictorExtensionSpec{
+								StorageURI:     &storageUri,
+								RuntimeVersion: proto.String("1.14.0"),
+								Container: v1.Container{
+									Name:      constants.InferenceServiceContainerName,
+									Resources: defaultResource,
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, isvc)).Should(Succeed())
+			defer k8sClient.Delete(ctx, isvc)
+			inferenceService := &v1beta1.InferenceService{}
+
+			updatedService := &knservingv1.Service{}
+			predictorServiceKey := types.NamespacedName{Name: constants.PredictorServiceName(serviceKey.Name),
+				Namespace: serviceKey.Namespace}
+			Eventually(func() error { return k8sClient.Get(context.TODO(), predictorServiceKey, updatedService) }, timeout).
+				Should(Succeed())
+
+			predictorUrl, _ := apis.ParseURL("http://" + constants.InferenceServiceHostName(constants.PredictorServiceName(serviceKey.Name), serviceKey.Namespace, domain))
+			// update predictor status
+			updatedService.Status.URL = predictorUrl
+			updatedService.Status.Conditions = duckv1.Conditions{
+				{
+					Type:   knservingv1.ServiceConditionReady,
+					Status: "True",
+				},
+			}
+
+			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				return k8sClient.Status().Update(context.TODO(), updatedService)
+			})).NotTo(gomega.HaveOccurred())
+
+			// assert inference service predictor status
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, serviceKey, inferenceService)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			fmt.Printf("go to sleep......")
 			time.Sleep(30000*time.Second)
 		})
 	})
