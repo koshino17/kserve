@@ -2325,8 +2325,8 @@ var _ = Describe("v1beta1 inference service controller", func() {
 		            }
 		            return false
 		        }, timeout, interval).Should(BeTrue())
-			fmt.Printf("Go to sleep .....")
-			time.Sleep(30000*time.Second)
+			//fmt.Printf("Go to sleep .....")
+			//time.Sleep(30000*time.Second)
 		})
 	})
 })
