@@ -2189,8 +2189,8 @@ var _ = Describe("v1beta1 inference service controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
-	Context("HAO", func() {
-		It("HAO", func() {
+	Context("If the InferenceService occured any error", func() {
+		It("InferenceService should generate event message about non-ready conditions", func() {
 			// Create configmap
 			var configMap = &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -2237,7 +2237,7 @@ var _ = Describe("v1beta1 inference service controller", func() {
 			k8sClient.Create(context.TODO(), servingRuntime)
 			defer k8sClient.Delete(context.TODO(), servingRuntime)
 			// Create Canary InferenceService
-			serviceName := "koshino"
+			serviceName := "test-err-msg"
 			var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: serviceName, Namespace: "default"}}
 			var serviceKey = expectedRequest.NamespacedName
 			var storageUri = "s3://test/mnist/export"
@@ -2298,35 +2298,27 @@ var _ = Describe("v1beta1 inference service controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			fmt.Printf("go to sleep.........")
-			// ***********************
-			time.Sleep(30*time.Second)
-			updatedService.Status.Conditions = duckv1.Conditions{
-		            {
-		                Type:   knservingv1.ServiceConditionReady,
-		                Status: "False",
-		                Reason: "ModelLoadFailed",
-		                Message: "Model failed to load",
-		            },
-		        }
-		        Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		            return k8sClient.Status().Update(context.TODO(), updatedService)
-		        })).NotTo(gomega.HaveOccurred())
 
-		        Eventually(func() bool {
-		            err := k8sClient.Get(ctx, serviceKey, inferenceService)
-		            if err != nil {
-		                return false
-		            }
-		            for _, condition := range inferenceService.Status.Conditions {
-		                if condition.Type == knservingv1.ServiceConditionReady && condition.Status == "False" {
-		                    return true
-		                }
-		            }
-		            return false
-		        }, timeout, interval).Should(BeTrue())
-			//fmt.Printf("Go to sleep .....")
-			//time.Sleep(30000*time.Second)
+			// should turn to fail
+			fmt.Printf("turn to fail.........")
+			time.Sleep(10 * time.Second)
+			updatedService.Status.Conditions = duckv1.Conditions{
+				{
+					Type:   knservingv1.ServiceConditionReady,
+					Status: "False",
+				},
+			}
+			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				return k8sClient.Status().Update(context.TODO(), updatedService)
+			})).NotTo(gomega.HaveOccurred())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, serviceKey, inferenceService)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })
